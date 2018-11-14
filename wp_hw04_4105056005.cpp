@@ -19,14 +19,17 @@ public:
 	int* dead;
 	string* strtemp;	//用來做輸入ENTER防呆
 	int* i;				//迴圈變數
+	int* restart;
 
 	CStart() {
 		strtemp = new string;
 		dead = new int[4];
 		i = new int;
+		restart = new int;
+		*restart = 0;
 
 		for (*i = 0; *i < 4; (*i)++)
-			*(dead + *i) = 0;
+			*(dead + *i) = 1;
 	}
 
 	~CStart() {
@@ -35,6 +38,7 @@ public:
 		delete[] dead;
 		delete strtemp;
 		delete i;
+		delete restart;
 	}
 
 	//印出初始規則
@@ -544,12 +548,24 @@ public:
 	int* itemp;
 	char* ptemp;
 	string* stemp;
+	fstream *saveFile;
+	ifstream *loadFile;
+	int* count;	//用來數檔案數量
+	int* lines;	//紀錄讀檔行數
+	int* findWord; //紀錄檔尋找分割點
+	int* cutWord;
+	string* words;
+	int* i;	//for迴圈用
 	
 	CGameloop() {
 		dice = new int;
 		itemp = new int;
 		ptemp = new char[30];
 		stemp = new string;
+		saveFile = new fstream;
+		loadFile = new ifstream;
+		words = new string;
+		i = new int;
 	}
 
 	~CGameloop(){
@@ -557,6 +573,281 @@ public:
 		delete itemp;
 		delete[] ptemp;
 		delete stemp;
+		delete saveFile;
+		delete loadFile;
+		delete count;
+		delete lines;
+		delete i;
+	}
+
+	//存檔
+	void saveText(Cplayer* p1, Cplayer* p2, Cplayer* p3, Cplayer* p4, CLands* map, CStart* start) {
+		(*saveFile).open("Save.txt", ios::out | ios::app);
+		if ((*saveFile).is_open()) {
+			(*saveFile) << "\nSave file:" << endl;
+			(*saveFile) << "Player one's name:" << *(*p1).name << endl;
+			(*saveFile) << "Player two's name:" << *(*p2).name << endl;
+			(*saveFile) << "Player three's name:" << *(*p3).name << endl;
+			(*saveFile) << "Player four's name:" << *(*p4).name << endl;
+
+			(*saveFile) << "Player one's money:" << *(*p1).money << endl;
+			(*saveFile) << "Player two's money:" << *(*p2).money << endl;
+			(*saveFile) << "Player three's money:" << *(*p3).money << endl;
+			(*saveFile) << "Player four's money:" << *(*p4).money << endl;
+
+			(*saveFile) << "Number of players:" << *(*start).people << endl;
+			(*saveFile) << "Number of real players:" << *(*start).realPlayer << endl;
+
+			(*saveFile) << "Players' position:" << *(*p1).position << "/" << *(*p2).position << "/" <<
+				*(*p3).position << "/" << *(*p4).position << "/" << endl;
+
+			(*saveFile) << "Players' notax card:" << *(*p1).notax << "/" << *(*p2).notax << "/" << 
+				*(*p3).notax << "/" << *(*p4).notax << "/" << endl;
+
+			(*saveFile) << "Players are alive or not:" << *(*start).dead << "/" << *((*start).dead + 1) << "/" <<
+				*((*start).dead + 2) << "/" << *((*start).dead + 3) << "/" << endl;
+
+			(*saveFile) << "Cost of each place from 00 to 29:";
+			for (*itemp = 0; *itemp < 30; (*itemp)++)
+				(*saveFile) << *((*map).cost + (*itemp)) << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "Number of houses on each place from 00 to 29:";
+			for (*itemp = 0; *itemp < 30; (*itemp)++)
+				(*saveFile) << *((*map).houses + (*itemp)) << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "owner of each place from 00 to 29:";
+			for (*itemp = 0; *itemp < 30; (*itemp)++)
+				(*saveFile) << *((*map).owner + (*itemp)) << "/";
+			(*saveFile) << endl;
+
+			
+			(*saveFile).close();
+			cout << "儲存成功。" << endl;
+		}
+		return;
+	}
+	
+	//讀檔
+	void loadtext(Cplayer* p1, Cplayer* p2, Cplayer* p3, Cplayer* p4, CLands* map, CStart* start) {
+		(*loadFile).open("Save.txt", ifstream::in);
+		if ((*loadFile).is_open()) {
+			count = new int;
+			*count = 0;
+			//數出有幾個檔案
+			while (getline(*loadFile, *stemp)) {
+				if ((*stemp).compare("Save file:") == 0)
+					*count += 1;
+			}
+			(*loadFile).close();
+			if (*count == 0) {
+				cout << "無任何存檔紀錄" << endl;
+				return;
+			}
+			cout << "現在有" << *count << "個記錄檔，請輸入數字選擇要第幾個紀錄檔，數字越大紀錄越新: ";
+			do {
+				if (!(cin >> *itemp)) {
+					cin.clear();
+					cin.ignore(numeric_limits<streamsize>::max(), '\n');
+					cout << "非整數輸入，請重新輸入: ";
+					continue;
+				}
+				if (*itemp > 0 && *itemp <= *count)
+					break;
+				cout << "輸入錯誤，請輸入範圍內的數字: ";
+			} while (true);
+			cin.ignore();
+		}
+
+		(*loadFile).open("Save.txt", ifstream::in);
+		*count = 0;
+		lines = new int;
+		*lines = 1;
+		findWord = new int;
+		cutWord = new int;
+		while (getline(*loadFile, *stemp)) {
+			if ((*stemp).compare("Save file:") == 0)
+				(*count)++;
+			if (*count == *itemp) {
+				switch (*lines)
+				{
+				case 2:		//第二行是玩家一號的名字
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord)+1);
+					*(*p1).name = *words;
+					break;
+				case 3:		//第三行是玩家二號的名字
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*(*p2).name = *words;
+					break;
+				case 4:		//第四行是玩家三號的名字
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*(*p3).name = *words;
+					break;
+				case 5:		//第五行是玩家四號的名字
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*(*p4).name = *words;
+					break;
+				case 6:		//第六行是玩家一號的金錢數量
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*findWord = stoi(*words);
+					*(*p1).money = *findWord;
+					break;
+				case 7:		//第七行是玩家二號的金錢數量
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*findWord = stoi(*words);
+					*(*p2).money = *findWord;
+					break;
+				case 8:		//第八行是玩家三號的金錢數量
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*findWord = stoi(*words);
+					*(*p3).money = *findWord;
+					break;
+				case 9:		//第九行是玩家四號的金錢數量
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*findWord = stoi(*words);
+					*(*p4).money = *findWord;
+					break;
+				case 10:	//第十行是玩家人數
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*findWord = stoi(*words);
+					*(*start).people = *findWord;
+					break;
+				case 11:	//第十一行是真實玩家人數
+					*findWord = (*stemp).find(":");
+					*words = (*stemp).substr((*findWord) + 1);
+					*findWord = stoi(*words);
+					*(*start).realPlayer = *findWord;
+					break;
+				case 12:	//第十二行是玩家位置
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(*p1).position = *findWord;	//存入一號玩家位置
+					
+					*stemp = (*stemp).substr((*cutWord) + 1);
+					*cutWord = (*stemp).find("/");	//取出第二個斜線間的數
+					*words = (*stemp).substr(0, *cutWord);
+					*findWord = stoi(*words);
+					*(*p2).position = *findWord;
+
+					*stemp = (*stemp).substr((*cutWord) + 1);
+					*cutWord = (*stemp).find("/");	//取出第三個斜線間的數
+					*words = (*stemp).substr(0, *cutWord);
+					*findWord = stoi(*words);
+					*(*p3).position = *findWord;
+
+					*stemp = (*stemp).substr((*cutWord) + 1);
+					*cutWord = (*stemp).find("/");	//取出第四個斜線間的數
+					*words = (*stemp).substr(0, *cutWord);
+					*findWord = stoi(*words);
+					*(*p4).position = *findWord;
+					break;
+				case 13:	//第十三行是玩家逃稅卡
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(*p1).notax = *findWord;	//存入一號玩家位置
+
+					*stemp = (*stemp).substr((*cutWord) + 1);
+					*cutWord = (*stemp).find("/");	//取出第二個斜線間的數
+					*words = (*stemp).substr(0, *cutWord);
+					*findWord = stoi(*words);
+					*(*p2).notax = *findWord;
+
+					*stemp = (*stemp).substr((*cutWord) + 1);
+					*cutWord = (*stemp).find("/");	//取出第三個斜線間的數
+					*words = (*stemp).substr(0, *cutWord);
+					*findWord = stoi(*words);
+					*(*p3).notax = *findWord;
+
+					*stemp = (*stemp).substr((*cutWord) + 1);
+					*cutWord = (*stemp).find("/");	//取出第四個斜線間的數
+					*words = (*stemp).substr(0, *cutWord);
+					*findWord = stoi(*words);
+					*(*p4).notax = *findWord;
+					break;
+				case 14:	//第十四行是玩家存活或死亡
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(*start).dead = *findWord;	
+
+					for (*i = 1; *i < 4; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						*((*start).dead + *i) = *findWord;
+					}
+					break;
+				case 15:	//第十五行是各地房價
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(*map).cost = *findWord;
+
+					for (*i = 1; *i < 30; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						*((*map).cost + *i) = *findWord;
+					}
+					break;
+				case 16:	//第十六行是各地房屋數量
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(*map).houses = *findWord;
+
+					for (*i = 1; *i < 30; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						*((*map).houses + *i) = *findWord;
+					}
+					break;
+				case 17:	//第十七行是各地房屋擁有者
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(*map).owner = *findWord;
+
+					for (*i = 1; *i < 30; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						*((*map).owner + *i) = *findWord;
+					}
+					break;
+				default:
+					break;
+				}
+				(*lines)++;
+			}
+		}
+		delete count;
+		delete findWord;
+		delete cutWord;
+		(*loadFile).close();
 	}
 
 	//機會
@@ -639,7 +930,7 @@ public:
 	void realGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4) {
 		//擲骰子
 		do {
-			cout << "按d擲骰子，按r重新開始，show印出所有過往事件，load載入舊遊戲檔，save存檔，delete刪除所有紀錄檔: ";
+			cout << "按d擲骰子，按r重新開始，show印出過往事件，load載入舊檔，save存檔，delete刪除紀錄檔: ";
 			cin.getline(ptemp, 30);
 			if (*ptemp == 'd' && *(ptemp + 1) == '\0') {
 				srand(time(NULL));
@@ -647,6 +938,30 @@ public:
 				*dice = (rand() % 11) + 2;
 				cout << "登登愣~你共擲出了 " << *dice << " 點。 " << endl;
 				break;
+			}
+			else if (*ptemp == 'r' && *(ptemp + 1) == '\0') {
+				*(*start).restart = 1;
+				return;
+			}
+			else if (*ptemp == 's' && *(ptemp + 1) == 'a' && *(ptemp + 2) == 'v' && *(ptemp + 3) == 'e' && *(ptemp + 4) == '\0') {
+				if(*(*player).playerNumber == 1)
+					saveText(player, p2, p3, p4, map, start);
+				else if(*(*player).playerNumber == 2)
+					saveText(p2, player, p3, p4, map, start);
+				else if (*(*player).playerNumber == 3)
+					saveText(p3, p2, player, p4, map, start);
+				else if (*(*player).playerNumber == 4)
+					saveText(p4, p2, p3, player, map, start);
+			}
+			else if (*ptemp == 'l' && *(ptemp + 1) == 'o' && *(ptemp + 2) == 'a' && *(ptemp + 3) == 'd' && *(ptemp + 4) == '\0') {
+				if (*(*player).playerNumber == 1)
+					loadtext(player, p2, p3, p4, map, start);
+				else if (*(*player).playerNumber == 2)
+					loadtext(p2, player, p3, p4, map, start);
+				else if (*(*player).playerNumber == 3)
+					loadtext(p3, p2, player, p4, map, start);
+				else if (*(*player).playerNumber == 4)
+					loadtext(p4, p2, p3, player, map, start);
 			}
 			else {
 				cout << "輸入錯誤。" << endl;
@@ -700,11 +1015,16 @@ public:
 				}
 				//買房子
 				else {
-					if( *((*map).houses + *(*player).position) == 0)
+					if (*((*map).houses + *(*player).position) == 0) {
+						if (*(*player).money <= *((*map).cost + *(*player).position))
+							cout << "****警告!有破產危機***" << endl;
 						cout << "玩家" << *(*player).name << "有現金" << *(*player).money << "元，請問要購買房子嗎? 此地房子要" << *((*map).cost + *(*player).position) << "元。(y/n)";
+					}
 					else {
 						cout << "你在此地已經有" << *((*map).houses + *(*player).position) << "級房子。收取租金，獲得" << (int)*((*map).cost + *(*player).position) / 2 * 1.5 << "元。\n";
 						*(*player).money += (int)*((*map).cost + *(*player).position) / 2 * 1.5;
+						if (*(*player).money <= *((*map).cost + *(*player).position))
+							cout << "****警告!有破產危機***" << endl;
 						cout << "玩家" << *(*player).name << "有現金" << *(*player).money << "元，請問要升級房子嗎?需要花費" << *((*map).cost + *(*player).position) << "元。(y/n): ";
 					}
 					do {
@@ -714,7 +1034,7 @@ public:
 							*((*map).houses + *(*player).position) += 1;
 							if (*((*map).houses + *(*player).position) < 5)
 								*((*map).cost + *(*player).position) *= 2;
-							cout << "升級了[" << *((*map).landName + *(*player).position) << "]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
+							cout << "購買了[" << *((*map).landName + *(*player).position) << "]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
 							*((*map).owner + *(*player).position) = *(*player).playerNumber;
 							getline(cin, *stemp);
 							break;
@@ -744,6 +1064,8 @@ public:
 					getline(cin, *stemp);
 				}
 				else {
+					if (*(*player).money <= *((*map).cost + *(*player).position))
+						cout << "****警告!有破產危機***" << endl;
 					cout << "擁有這塊地的玩家已經死亡了，這邊是一片充滿怪物的荒地，" << (int)*((*map).cost + *(*player).position) / 2 << "元可以接管他的土地(y/n): ";
 					do {
 						cin.getline(ptemp, 25);
@@ -889,26 +1211,29 @@ public:
 
 int main()
 {
-	//遊戲開始，印出規則和輸入人數
-	CStart *start = new CStart();
-	(*start).printStart();
-	(*start).howManyPeople();
-	Cplayer *playerOne = new Cplayer();
-	Cplayer *playerTwo = new Cplayer();
-	Cplayer *playerThree = new Cplayer();
-	Cplayer *playerFour = new Cplayer();
+	while (1) {
+		//遊戲開始，印出規則和輸入人數
+		CStart *start = new CStart();
+		(*start).printStart();
+		(*start).howManyPeople();
+		Cplayer *playerOne = new Cplayer();
+		Cplayer *playerTwo = new Cplayer();
+		Cplayer *playerThree = new Cplayer();
+		Cplayer *playerFour = new Cplayer();
 
-	//輸入金錢，設定所有玩家的金錢數
-	(*playerOne).inputMoney();
-	cout << endl;
+		//輸入金錢，設定所有玩家的金錢數
+		(*playerOne).inputMoney();
+		cout << endl;
 
-	//輸入玩家名字與設定金額
-	cout << "輸入一號玩家英文名字: ";
-	(*playerOne).inputName();
-	*(*playerOne).playerNumber = 1;
-	if (*(*start).people >= 2) {
+		//輸入玩家名字與設定金額
+		cout << "輸入一號玩家英文名字: ";
+		(*playerOne).inputName();
+		*(*playerOne).playerNumber = 1;
+		*(*start).dead = 0;
+
 		(*playerTwo).setMoney(playerOne);		//設定金錢
 		*(*playerTwo).playerNumber = 2;			//設定玩家號碼
+		*((*start).dead + 1) = 0;
 		if (*(*start).realPlayer >= 2) {		//如果有第二位真實玩家
 			cout << "輸入二號玩家英文名字: ";
 			(*playerTwo).inputName();
@@ -917,84 +1242,133 @@ int main()
 			(*playerTwo).name = new string;
 			*(*playerTwo).name = "ComputerTwo";
 		}
-	}
-	if (*(*start).people >= 3) {
+
 		(*playerThree).setMoney(playerOne);		//設定金錢
 		*(*playerThree).playerNumber = 3;			//設定玩家號碼
 		if (*(*start).realPlayer >= 3) {		//如果有第三位真實玩家
 			cout << "輸入三號玩家英文名字: ";
 			(*playerThree).inputName();
+			*((*start).dead + 2) = 0;
 		}
 		else {									//第三位玩家為電腦玩家
 			(*playerThree).name = new string;
 			*(*playerThree).name = "ComputerThree";
+			if(*(*start).people >= 3)
+				*((*start).dead + 2) = 0;
 		}
-	}
-	if (*(*start).people == 4) {
+
 		(*playerFour).setMoney(playerOne);		//設定金錢
 		*(*playerFour).playerNumber = 4;			//設定玩家號碼
 		if (*(*start).realPlayer == 4) {		//如果有第四位真實玩家
 			cout << "輸入四號玩家英文名字: ";
 			(*playerFour).inputName();
+			*((*start).dead + 3) = 0;
 		}
 		else {									//第四位玩家為電腦玩家
 			(*playerFour).name = new string;
 			*(*playerFour).name = "ComputerFour";
+			if (*(*start).people == 4)
+				*((*start).dead + 3) = 0;
 		}
+
+		cout << "\n大功告成，您設定完初始資料了! 所有人的開場金額為" << *(*playerOne).money << "元。";
+		cout << "總共玩家數為" << *(*start).people << "人，選擇" << *(*start).realPlayer << "個真實玩家。(按下enter繼續)";
+		getline(cin, *(*start).strtemp);
+
+		CLands *map = new CLands;
+		(*map).setmap();			//設定地圖地名與價格
+
+		CGameloop *game = new CGameloop;
+		do {
+			if (*(*start).dead == 0) {
+				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
+				cout << "玩家" << *(*playerOne).name << "擁有" << *(*playerOne).money << "元。\n";
+				(*game).realGamerLoop(playerOne, map, start, playerTwo, playerThree, playerFour);		//一號玩家
+			}
+			if (*(*start).restart == 1)		//重新開始遊戲
+				break;
+
+			if (*(*start).people >= 2 && *((*start).dead + 1) == 0) {
+				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
+				cout << "玩家" << *(*playerTwo).name << "擁有" << *(*playerTwo).money << "元。\n";
+				if (*(*start).realPlayer >= 2)
+					(*game).realGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);	//二號真實玩家
+				else
+					(*game).computerGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);//二號電腦玩家
+			}
+			if (*(*start).restart == 1)		//重新開始遊戲
+				break;
+
+			if (*(*start).people >= 3 && *((*start).dead + 2) == 0) {
+				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
+				cout << "玩家" << *(*playerThree).name << "擁有" << *(*playerThree).money << "元。\n";
+				if (*(*start).realPlayer >= 3)
+					(*game).realGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);	//三號真實玩家
+				else
+					(*game).computerGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);//三號電腦玩家
+			}
+			if (*(*start).restart == 1)		//重新開始遊戲
+				break;
+
+			if (*(*start).people == 4 && *((*start).dead + 3) == 0) {
+				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
+				cout << "玩家" << *(*playerFour).name << "擁有" << *(*playerFour).money << "元。\n";
+				if (*(*start).realPlayer == 4)
+					(*game).realGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);	//四號真實玩家
+				else
+					(*game).computerGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);//四號電腦玩家
+			}
+			if (*(*start).restart == 1)		//重新開始遊戲
+				break;
+
+			if (*(*start).dead == 1 && *(*start).realPlayer == 1 || *(*start).dead == 1 && *((*start).dead + 1) == 1 && *(*start).realPlayer == 2 ||
+				*(*start).dead == 1 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 1 && *(*start).realPlayer == 3)
+			{
+				cout << "\n全部真人玩家都破產了!!!!!!!送你一把人生重來槍，要重新開始遊戲嗎?(按r重新開始)";
+				do {
+					cin.getline((*game).ptemp, 25);
+					if (*(*game).ptemp == 'r' && *((*game).ptemp + 1) == '\0')
+						break;
+					else
+						cout << "輸入錯誤，重新輸入: ";
+				} while (true);
+				break;
+			}
+			else if (*(*start).dead == 0 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 1 && *((*start).dead + 3) == 1){
+				cout << "恭喜一號玩家" << *(*playerOne).name << "勝利!!!(按下ENTER)" << endl;
+				getline(cin, *(*start).strtemp);
+				break;
+			}
+			else if (*(*start).dead == 1 && *((*start).dead + 1) == 0 && *((*start).dead + 2) == 1 && *((*start).dead + 3) == 1) {
+				cout << "恭喜二號玩家" << *(*playerTwo).name << "勝利!!!(按下ENTER)" << endl;
+				getline(cin, *(*start).strtemp);
+				break;
+			}
+			else if (*(*start).dead == 1 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 0 && *((*start).dead + 3) == 1) {
+				cout << "恭喜三號玩家" << *(*playerThree).name << "勝利!!!(按下ENTER)" << endl;
+				getline(cin, *(*start).strtemp);
+				break;
+			}
+			else if (*(*start).dead == 1 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 1 && *((*start).dead + 3) == 0) {
+				cout << "恭喜四號玩家" << *(*playerFour).name << "勝利!!!(按下ENTER)" << endl;
+				getline(cin, *(*start).strtemp);
+				break;
+			}
+
+		} while (true);
+
+		cout << endl << endl;
+		cout << "---------------------------------------------------------------------------------------------------------------------" << endl << endl;
+
+		delete start;
+		delete playerOne;
+		delete playerTwo;
+		delete playerThree;
+		delete playerFour;
+		delete map;
+		delete game;
 	}
-	cout << "\n大功告成，您設定完初始資料了! 所有人的開場金額為" << *(*playerOne).money << "元。";
-	cout << "總共玩家數為" << *(*start).people << "人，選擇" << *(*start).realPlayer << "個真實玩家。(按下enter繼續)";
-	getline(cin, *(*start).strtemp);
 
-	CLands *map = new CLands;
-	(*map).setmap();			//設定地圖地名與價格
-	(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);		//印出地圖
-
-	CGameloop *game = new CGameloop;
-	do {
-		if (*(*start).dead == 0) {
-			cout << "玩家" << *(*playerOne).name << "擁有" << *(*playerOne).money << "元。\n";
-			(*game).realGamerLoop(playerOne, map, start, playerTwo, playerThree, playerFour);		//一號玩家
-			(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-		}
-
-		if (*(*start).people >= 2 && *((*start).dead + 1) == 0) {
-			cout << "玩家" << *(*playerTwo).name << "擁有" << *(*playerTwo).money << "元。\n";
-			if (*(*start).realPlayer >= 2)
-				(*game).realGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);	//二號真實玩家
-			else
-				(*game).computerGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);//二號電腦玩家
-			(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-		}
-		
-		if (*(*start).people >= 3 && *((*start).dead + 2) == 0) {
-			cout << "玩家" << *(*playerThree).name << "擁有" << *(*playerThree).money << "元。\n";
-			if (*(*start).realPlayer >= 3)
-				(*game).realGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);	//三號真實玩家
-			else
-				(*game).computerGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);//三號電腦玩家
-			(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-		}
-		
-		if (*(*start).people == 4 && *((*start).dead + 3) == 0) {
-			cout << "玩家" << *(*playerFour).name << "擁有" << *(*playerFour).money << "元。\n";
-			if (*(*start).realPlayer == 4)
-				(*game).realGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);	//四號真實玩家
-			else
-				(*game).computerGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);//四號電腦玩家
-			(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-		}
-
-	} while (1);
-	
-
-	delete start;
-	delete playerOne;
-	delete playerTwo;
-	delete playerThree;
-	delete playerFour;
-	delete map;
-	delete game;
     return 0;
 }
 
