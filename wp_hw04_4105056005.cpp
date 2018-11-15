@@ -22,6 +22,7 @@ public:
 	Cshow() {
 		showstr = new string;
 		stemp = new string;
+		remove("ShowEvent.txt");
 	}
 
 	~Cshow() {
@@ -136,11 +137,10 @@ public:
 		} while (true);
 		cin.ignore();
 		cout << endl;
-		(*(*show).showstr).append("遊玩總人數為");
-		(*(*show).showstr).append(to_string(*people));
-		(*(*show).showstr).append("，真實玩家數為");
-		(*(*show).showstr).append(to_string(*realPlayer));
+		(*(*show).showstr).append("遊玩總人數為" + to_string(*people) + "人");
+		(*(*show).showstr).append("，真實玩家數為" + to_string(*realPlayer) + "人。");
 		(*show).storeShow();
+		*(*show).showstr = "";
 	}
 };
 
@@ -977,6 +977,7 @@ public:
 
 	//***真實玩家***
 	void realGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4, Cshow* show) {
+		(*(*show).showstr).append("玩家" + *(*player).name + "的回合，");
 		//擲骰子
 		do {
 			cout << "按d擲骰子，按r重新開始，show印出過往事件，load載入舊檔，save存檔，delete刪除紀錄檔: ";
@@ -986,6 +987,7 @@ public:
 				dice = new int;
 				*dice = (rand() % 11) + 2;
 				cout << "登登愣~你共擲出了 " << *dice << " 點。 " << endl;
+				(*(*show).showstr).append("骰出了" + to_string(*dice) + "點。\n");
 				break;
 			}
 			else if (*ptemp == 'r' && *(ptemp + 1) == '\0') {
@@ -993,6 +995,7 @@ public:
 				return;
 			}
 			else if (*ptemp == 's' && *(ptemp + 1) == 'a' && *(ptemp + 2) == 'v' && *(ptemp + 3) == 'e' && *(ptemp + 4) == '\0') {
+				(*(*show).showstr).append("選擇存檔，");
 				if (*(*player).playerNumber == 1)
 					saveText(player, p2, p3, p4, map, start);
 				else if (*(*player).playerNumber == 2)
@@ -1003,6 +1006,7 @@ public:
 					saveText(p4, p2, p3, player, map, start);
 			}
 			else if (*ptemp == 'l' && *(ptemp + 1) == 'o' && *(ptemp + 2) == 'a' && *(ptemp + 3) == 'd' && *(ptemp + 4) == '\0') {
+				(*(*show).showstr).append("選擇讀檔...\n");
 				if (*(*player).playerNumber == 1)
 					loadtext(player, p2, p3, p4, map, start);
 				else if (*(*player).playerNumber == 2)
@@ -1030,32 +1034,43 @@ public:
 		if (*(*player).position >= 30) {	//如果經過原點，獲得300元
 			*(*player).position -= 30;
 			cout << "經過起點，很高興你能活著回來，送你300元獎勵。" << endl;
+			(*(*show).showstr).append("經過起點，獲得300元獎勵。");
 			*(*player).money += 300;
 		}
 		cout << "前往[ " << *((*map).landName+ *(*player).position) << " ]方塊。(按下ENTER)";
+		(*(*show).showstr).append("前往方塊:");
+		(*(*show).showstr).append(*((*map).landName + *(*player).position));
+		(*(*show).showstr).append(" ");
+
 		getline(cin, *stemp);
 		//到達機會方塊
 		if (*(*player).position == 6) {
 			cout << "危機就是轉機! 親愛的玩家，抽取一張機會牌...(按下ENTER)";
 			getline(cin, *stemp);
+			(*(*show).showstr).append("抽取機會牌。\n");
 			chance(player);
 		}
 		//到達命運方塊
 		else if (*(*player).position == 17) {
 			cout << "你到達了命運女神的殿堂，她將賜予你一張命運牌...(按下ENTER)";
 			getline(cin, *stemp);
+			(*(*show).showstr).append("抽取命運牌。\n");
 			community(player);
 		}
 		//到達抽稅方塊
 		else if (*(*player).position == 10 || *(*player).position == 25) {
-			cout << "真倒楣，是收稅時間!!! 請上繳200塊給系統。(按下ENTER)";
+			cout << "真倒楣，是收稅時間!!! 請上繳200元給系統。(按下ENTER)";
 			getline(cin, *stemp);
 			if (*(*player).notax > 0) {
-				cout << "使用逃稅密籍!!!我就是死不繳稅三十六式!" << endl;
+				cout << "使用逃稅密籍!!!我就是死不繳稅三十六式!(按下ENTER)" << endl;
+				(*(*show).showstr).append("使用逃稅密籍。\n");
 				(*(*player).notax)--;
+				getline(cin, *stemp);
 			}
-			else
+			else {
 				*(*player).money -= 200;
+				(*(*show).showstr).append("繳稅200元。\n");
+			}
 		}
 		//到達起點
 		else if (*(*player).position == 0) {
@@ -1070,6 +1085,7 @@ public:
 					cout << "此地點已是五級房子，到達土地上限，無法再蓋房子。收取租金，獲得" << (int)*((*map).cost + *(*player).position) * 1.5 << "元。(按下ENTER)";
 					*(*player).money += (int)*((*map).cost + *(*player).position) * 1.5;
 					getline(cin, *stemp);
+					(*(*show).showstr).append("收取租金，獲得" + to_string((int)*((*map).cost + *(*player).position) * 1.5) + "元。\n");
 				}
 				//買房子
 				else {
@@ -1081,6 +1097,7 @@ public:
 					else {
 						cout << "你在此地已經有" << *((*map).houses + *(*player).position) << "級房子。收取租金，獲得" << (int)*((*map).cost + *(*player).position) / 2 * 1.5 << "元。\n";
 						*(*player).money += (int)*((*map).cost + *(*player).position) / 2 * 1.5;
+						(*(*show).showstr).append("收取租金，獲得" + to_string((int)*((*map).cost + *(*player).position) / 2 * 1.5) + "元。");
 						if (*(*player).money <= *((*map).cost + *(*player).position))
 							cout << "****警告!有破產危機***" << endl;
 						cout << "玩家" << *(*player).name << "有現金" << *(*player).money << "元，請問要升級房子嗎?需要花費" << *((*map).cost + *(*player).position) << "元。(y/n): ";
@@ -1094,11 +1111,13 @@ public:
 								*((*map).cost + *(*player).position) *= 2;
 							cout << "購買了[" << *((*map).landName + *(*player).position) << "]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
 							*((*map).owner + *(*player).position) = *(*player).playerNumber;
+							(*(*show).showstr).append("購買房子，此地點為" + to_string(*((*map).houses + *(*player).position)) + "級房屋。\n");
 							getline(cin, *stemp);
 							break;
 						}
 						else if (*ptemp == 'n' && *(ptemp + 1) == '\0') {			//拒絕買房
 							cout << "拒絕購買房子，遊戲繼續。(按下ENTER)";
+							(*(*show).showstr).append("拒絕購買房子。\n");
 							getline(cin, *stemp);
 							break;
 						}
@@ -1111,7 +1130,8 @@ public:
 			//踩上別人家的土地
 			else if (*((*map).owner + *(*player).position) != *(*player).playerNumber && *((*map).owner + *(*player).position) > 0) {
 				if (*((*start).dead + *((*map).owner + *(*player).position)-1) == 0) {		//此地擁有者還活著
-					cout << "你站上了" << *((*map).owner + *(*player).position) << "號玩家的土地，需要付他" << (int)*((*map).cost + *(*player).position) * 0.5 << "元過路費。(按下ENTER)";
+					cout << "你站上了" << *((*map).owner + *(*player).position) << "號玩家的土地，需要付他" << *((*map).cost + *(*player).position) / 2 << "元過路費。(按下ENTER)";
+					(*(*show).showstr).append("站上" + to_string(*((*map).owner + *(*player).position)) + "號玩家的土地，需要付他" + to_string(*((*map).cost + *(*player).position) / 2) + "元。\n");
 					*(*player).money -= (int)*((*map).cost + *(*player).position) * 0.5;
 					if( *(*p2).playerNumber == *((*map).owner + *(*player).position))		//誰的土地，誰就賺錢
 						*(*p2).money += (int)*((*map).cost + *(*player).position) * 0.5;
@@ -1130,6 +1150,7 @@ public:
 						if (*ptemp == 'y' && *(ptemp + 1) == '\0') {
 							*(*player).money -= (int)*((*map).cost + *(*player).position) / 2;
 							cout << "接管了[ " << *((*map).landName + *(*player).position) << " ]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
+							(*(*show).showstr).append("接管" + to_string(*((*map).owner + *(*player).position)) + "號玩家的房子。\n");
 							*((*map).owner + *(*player).position) = *(*player).playerNumber;
 							getline(cin, *stemp);
 							break;
@@ -1149,33 +1170,44 @@ public:
 		if (*(*player).money <= 0) {
 			cout << "\n你破產了!!!!!!!!!(按下ENTER)" << endl;
 			*((*start).dead + *(*player).playerNumber - 1) = 1;			//設定此真實玩家死亡
+			(*(*show).showstr).append("此玩家破產!!!!\n");
 			getline(cin, *stemp);
 		}
+		(*show).storeShow();
+		*(*show).showstr = "";
 	}
 
 	//***虛擬電腦玩家***
-	void computerGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4) {
+	void computerGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4, Cshow* show) {
+		(*(*show).showstr).append("玩家" + *(*player).name + "的回合，");
 		//擲骰子
 		srand(time(NULL));
 		dice = new int;
 		*dice = (rand() % 11) + 2;
 		cout << "電腦玩家擲出了 " << *dice << " 點。 ";
+		(*(*show).showstr).append("骰出了" + to_string(*dice) + "點。\n");
 
 		*(*player).position += *dice;		//移動
 		if (*(*player).position >= 30) {	//如果經過原點，獲得300元
 			*(*player).position -= 30;
 			cout << "經過起點，獲得300元獎勵。";
+			(*(*show).showstr).append("經過起點，獲得300元獎勵。");
 			*(*player).money += 300;
 		}
 		cout << "前往[ " << *((*map).landName + *(*player).position) << " ]方塊。\n";
+		(*(*show).showstr).append("前往方塊:");
+		(*(*show).showstr).append(*((*map).landName + *(*player).position));
+		(*(*show).showstr).append(" ");
 		//到達機會方塊
 		if (*(*player).position == 6) {
 			cout << "危機就是轉機! 抽取一張機會牌...\n";
+			(*(*show).showstr).append("抽取機會牌。\n");
 			chance(player);
 		}
 		//到達命運方塊
 		else if (*(*player).position == 17) {
 			cout << "到達了命運女神的殿堂，她賜予一張命運牌...\n";
+			(*(*show).showstr).append("抽取命運牌。\n");
 			community(player);
 		}
 		//到達抽稅方塊
@@ -1185,11 +1217,14 @@ public:
 			if (*(*player).notax > 0) {
 				cout << "使用了逃稅密籍。";
 				(*(*player).notax)--;
+				(*(*show).showstr).append("使用逃稅密籍。\n");
 				cout << "   (按下ENTER)";
 				getline(cin, *stemp);
 			}
-			else
+			else {
 				*(*player).money -= 200;
+				(*(*show).showstr).append("繳稅200元。\n");
+			}
 		}
 		//到達起點
 		else if (*(*player).position == 0) {
@@ -1204,6 +1239,7 @@ public:
 				if (*((*map).houses + *(*player).position) >= 5) {
 					cout << "此地點已是五級房子，到達土地上限，無法再蓋房子。收取租金，獲得" << (int)*((*map).cost + *(*player).position) * 1.5 << "元。(按下ENTER)";
 					*(*player).money += (int)*((*map).cost + *(*player).position) * 1.5;
+					(*(*show).showstr).append("收取租金，獲得" + to_string((int)*((*map).cost + *(*player).position) * 1.5) + "元。\n");
 					getline(cin, *stemp);
 				}
 				//買房子
@@ -1213,6 +1249,7 @@ public:
 					else {
 						cout << "在此地已經有" << *((*map).houses + *(*player).position) << "級房子。收取租金，獲得" << (int)*((*map).cost + *(*player).position) / 2 * 1.5 << "元。\n";
 						*(*player).money += (int)*((*map).cost + *(*player).position) / 2 * 1.5;
+						(*(*show).showstr).append("收取租金，獲得" + to_string((int)*((*map).cost + *(*player).position) / 2 * 1.5) + "元。");
 						cout << "玩家" << *(*player).name << "有現金" << *(*player).money << "元，升級房子需要花費" << *((*map).cost + *(*player).position) << "元。\n ";
 					}
 					if (*(*player).money > *((*map).cost + *(*player).position) + 150) {			//接受買房子
@@ -1220,12 +1257,14 @@ public:
 						*((*map).houses + *(*player).position) += 1;
 						if (*((*map).houses + *(*player).position) < 5)
 							*((*map).cost + *(*player).position) *= 2;
-						cout << "他升級了[" << *((*map).landName + *(*player).position) << "]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
+						cout << "他購買了[" << *((*map).landName + *(*player).position) << "]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
 						*((*map).owner + *(*player).position) = *(*player).playerNumber;
+						(*(*show).showstr).append("購買房子，此地點為" + to_string(*((*map).houses + *(*player).position)) + "級房屋。\n");
 						getline(cin, *stemp);
 					}
 					else{			//拒絕買房
 						cout << "他拒絕購買房子，遊戲繼續。(按下ENTER)";
+						(*(*show).showstr).append("拒絕購買房子。\n");
 						getline(cin, *stemp);
 					}
 				}
@@ -1235,6 +1274,7 @@ public:
 			else if (*((*map).owner + *(*player).position) != *(*player).playerNumber && *((*map).owner + *(*player).position) > 0) {
 				if (*((*start).dead + *((*map).owner + *(*player).position) - 1) == 0) {		//此地擁有者還活著
 					cout << "站上了" << *((*map).owner + *(*player).position) << "號玩家的土地，付他" << (int)*((*map).cost + *(*player).position) * 0.5 << "元過路費。(按下ENTER)";
+					(*(*show).showstr).append("站上" + to_string(*((*map).owner + *(*player).position)) + "號玩家的土地，需要付他" + to_string(*((*map).cost + *(*player).position) / 2) + "元。\n");
 					*(*player).money -= (int)*((*map).cost + *(*player).position) * 0.5;
 					if (*(*p2).playerNumber == *((*map).owner + *(*player).position))		//誰的土地，誰就賺錢
 						*(*p2).money += (int)*((*map).cost + *(*player).position) * 0.5;
@@ -1250,6 +1290,7 @@ public:
 						*(*player).money -= (int)*((*map).cost + *(*player).position) / 2;
 						cout << "接管了[ " << *((*map).landName + *(*player).position) << " ]的房子。 此地點是" << *((*map).houses + *(*player).position) << "級房屋。(按下ENTER)";
 						*((*map).owner + *(*player).position) = *(*player).playerNumber;
+						(*(*show).showstr).append("接管" + to_string(*((*map).owner + *(*player).position)) + "號玩家的房子。\n");
 						getline(cin, *stemp);
 					}
 					else {			//拒絕買房
@@ -1263,7 +1304,10 @@ public:
 		if (*(*player).money <= 0) {
 			cout << "\n此玩家破產了!!!" << endl;
 			*((*start).dead + *(*player).playerNumber - 1) = 1;			//設定此玩家死亡
+			(*(*show).showstr).append("此玩家破產!!!!\n");
 		}
+		(*show).storeShow();
+		*(*show).showstr = "";
 	}
 };
 
@@ -1290,6 +1334,7 @@ int main()
 		(*playerOne).inputName();
 		*(*playerOne).playerNumber = 1;
 		*(*start).dead = 0;
+		(*(*show).showstr).append("一號玩家名字為" + *(*playerOne).name);
 
 		(*playerTwo).setMoney(playerOne);		//設定金錢
 		*(*playerTwo).playerNumber = 2;			//設定玩家號碼
@@ -1297,10 +1342,12 @@ int main()
 		if (*(*start).realPlayer >= 2) {		//如果有第二位真實玩家
 			cout << "輸入二號玩家英文名字: ";
 			(*playerTwo).inputName();
+			(*(*show).showstr).append("\t二號玩家名字為" + *(*playerTwo).name);
 		}
 		else {									//第二位玩家為電腦玩家
 			(*playerTwo).name = new string;
 			*(*playerTwo).name = "ComputerTwo";
+			(*(*show).showstr).append("\t二號玩家名字為ComputerTwo");
 		}
 
 		(*playerThree).setMoney(playerOne);		//設定金錢
@@ -1309,12 +1356,15 @@ int main()
 			cout << "輸入三號玩家英文名字: ";
 			(*playerThree).inputName();
 			*((*start).dead + 2) = 0;
+			(*(*show).showstr).append("\n三號玩家名字為" + *(*playerThree).name);
 		}
 		else {									//第三位玩家為電腦玩家
 			(*playerThree).name = new string;
 			*(*playerThree).name = "ComputerThree";
-			if(*(*start).people >= 3)
+			if (*(*start).people >= 3) {
 				*((*start).dead + 2) = 0;
+				(*(*show).showstr).append("\n三號玩家名字為ComputerThree");
+			}
 		}
 
 		(*playerFour).setMoney(playerOne);		//設定金錢
@@ -1323,13 +1373,20 @@ int main()
 			cout << "輸入四號玩家英文名字: ";
 			(*playerFour).inputName();
 			*((*start).dead + 3) = 0;
+			(*(*show).showstr).append("\t四號玩家名字為" + *(*playerFour).name);
 		}
 		else {									//第四位玩家為電腦玩家
 			(*playerFour).name = new string;
 			*(*playerFour).name = "ComputerFour";
-			if (*(*start).people == 4)
+			if (*(*start).people == 4) {
 				*((*start).dead + 3) = 0;
+				(*(*show).showstr).append("\t四號玩家名字為ComputerFour");
+			}
 		}
+		(*(*show).showstr).append("\n所有人的財產為");
+		(*(*show).showstr).append(to_string(*(*playerOne).money) + "元。\n");
+		(*show).storeShow();
+		*(*show).showstr = "";
 
 		cout << "\n大功告成，您設定完初始資料了! 所有人的開場金額為" << *(*playerOne).money << "元。";
 		cout << "總共玩家數為" << *(*start).people << "人，選擇" << *(*start).realPlayer << "個真實玩家。(按下enter開始)";
@@ -1354,7 +1411,7 @@ int main()
 				if (*(*start).realPlayer >= 2)
 					(*game).realGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour, show);	//二號真實玩家
 				else
-					(*game).computerGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);//二號電腦玩家
+					(*game).computerGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour, show);//二號電腦玩家
 			}
 			if (*(*start).restart == 1)		//重新開始遊戲
 				break;
@@ -1365,7 +1422,7 @@ int main()
 				if (*(*start).realPlayer >= 3)
 					(*game).realGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour, show);	//三號真實玩家
 				else
-					(*game).computerGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);//三號電腦玩家
+					(*game).computerGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour, show);//三號電腦玩家
 			}
 			if (*(*start).restart == 1)		//重新開始遊戲
 				break;
@@ -1376,7 +1433,7 @@ int main()
 				if (*(*start).realPlayer == 4)
 					(*game).realGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne, show);	//四號真實玩家
 				else
-					(*game).computerGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);//四號電腦玩家
+					(*game).computerGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne, show);//四號電腦玩家
 			}
 			if (*(*start).restart == 1)		//重新開始遊戲
 				break;
