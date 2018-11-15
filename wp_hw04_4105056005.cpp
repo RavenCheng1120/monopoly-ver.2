@@ -10,6 +10,49 @@
 #include <sstream>
 using namespace std;
 
+//印出過往事件
+class Cshow
+{
+public:
+	string* showstr;
+	fstream* showFile;
+	ifstream* printFile;
+	string* stemp;
+
+	Cshow() {
+		showstr = new string;
+		stemp = new string;
+	}
+
+	~Cshow() {
+		delete showstr;
+		delete stemp;
+	}
+	//儲存在ShowEvent文字檔案中
+	void storeShow() {
+		showFile = new fstream;
+		(*showFile).open("ShowEvent.txt", ios::out | ios::app);
+		if ((*showFile).is_open()) {
+			(*showFile) << *showstr << endl;
+			(*showFile).close();
+		}
+		delete showFile;
+	}
+	//印出ShowEvent檔案中的所有文字
+	void printShow() {
+		printFile = new ifstream;
+		(*printFile).open("ShowEvent.txt", ifstream::in);
+		if ((*printFile).is_open()) {
+			while (getline(*printFile, *stemp)) {
+				cout << *stemp << endl;
+			}
+			(*printFile).close();
+		}
+		delete printFile;
+	}
+
+};
+
 //開始遊戲，決定人數、真實玩家數、玩家是否存活
 class CStart
 {
@@ -58,7 +101,8 @@ public:
 	}
 
 	//輸入總共遊玩人數和真人玩家數量，有做輸入防呆
-	void howManyPeople() {
+	void howManyPeople(Cshow* show) {
+		(*(*show).showstr).append("遊戲開始\n");
 		cout << "請輸入總共遊玩人數(2到4人): ";
 		people = new int;
 		do {
@@ -92,6 +136,11 @@ public:
 		} while (true);
 		cin.ignore();
 		cout << endl;
+		(*(*show).showstr).append("遊玩總人數為");
+		(*(*show).showstr).append(to_string(*people));
+		(*(*show).showstr).append("，真實玩家數為");
+		(*(*show).showstr).append(to_string(*realPlayer));
+		(*show).storeShow();
 	}
 };
 
@@ -553,7 +602,7 @@ public:
 	int* count;	//用來數檔案數量
 	int* lines;	//紀錄讀檔行數
 	int* findWord; //紀錄檔尋找分割點
-	int* cutWord;
+	int* cutWord;	//紀錄分割點
 	string* words;
 	int* i;	//for迴圈用
 	
@@ -927,7 +976,7 @@ public:
 	}
 
 	//***真實玩家***
-	void realGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4) {
+	void realGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4, Cshow* show) {
 		//擲骰子
 		do {
 			cout << "按d擲骰子，按r重新開始，show印出過往事件，load載入舊檔，save存檔，delete刪除紀錄檔: ";
@@ -944,9 +993,9 @@ public:
 				return;
 			}
 			else if (*ptemp == 's' && *(ptemp + 1) == 'a' && *(ptemp + 2) == 'v' && *(ptemp + 3) == 'e' && *(ptemp + 4) == '\0') {
-				if(*(*player).playerNumber == 1)
+				if (*(*player).playerNumber == 1)
 					saveText(player, p2, p3, p4, map, start);
-				else if(*(*player).playerNumber == 2)
+				else if (*(*player).playerNumber == 2)
 					saveText(p2, player, p3, p4, map, start);
 				else if (*(*player).playerNumber == 3)
 					saveText(p3, p2, player, p4, map, start);
@@ -962,6 +1011,15 @@ public:
 					loadtext(p3, p2, player, p4, map, start);
 				else if (*(*player).playerNumber == 4)
 					loadtext(p4, p2, p3, player, map, start);
+
+				//防止讀檔時讀取到破產真實玩家
+				if (*(*player).money <= 0) {
+					cout << "此玩家已破產，換下一個玩家。" << endl;
+					return;
+				}
+			}
+			else if (*ptemp == 's' && *(ptemp + 1) == 'h' && *(ptemp + 2) == 'o' && *(ptemp + 3) == 'w' && *(ptemp + 4) == '\0') {
+				(*show).printShow();
 			}
 			else {
 				cout << "輸入錯誤。" << endl;
@@ -1209,13 +1267,15 @@ public:
 	}
 };
 
+
 int main()
 {
 	while (1) {
 		//遊戲開始，印出規則和輸入人數
 		CStart *start = new CStart();
+		Cshow *show = new Cshow();
 		(*start).printStart();
-		(*start).howManyPeople();
+		(*start).howManyPeople(show);
 		Cplayer *playerOne = new Cplayer();
 		Cplayer *playerTwo = new Cplayer();
 		Cplayer *playerThree = new Cplayer();
@@ -1272,7 +1332,7 @@ int main()
 		}
 
 		cout << "\n大功告成，您設定完初始資料了! 所有人的開場金額為" << *(*playerOne).money << "元。";
-		cout << "總共玩家數為" << *(*start).people << "人，選擇" << *(*start).realPlayer << "個真實玩家。(按下enter繼續)";
+		cout << "總共玩家數為" << *(*start).people << "人，選擇" << *(*start).realPlayer << "個真實玩家。(按下enter開始)";
 		getline(cin, *(*start).strtemp);
 
 		CLands *map = new CLands;
@@ -1282,17 +1342,17 @@ int main()
 		do {
 			if (*(*start).dead == 0) {
 				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-				cout << "玩家" << *(*playerOne).name << "擁有" << *(*playerOne).money << "元。\n";
-				(*game).realGamerLoop(playerOne, map, start, playerTwo, playerThree, playerFour);		//一號玩家
+				cout << "玩家一號 " << *(*playerOne).name << "擁有" << *(*playerOne).money << "元。\n";
+				(*game).realGamerLoop(playerOne, map, start, playerTwo, playerThree, playerFour, show);		//一號玩家
 			}
 			if (*(*start).restart == 1)		//重新開始遊戲
 				break;
 
 			if (*(*start).people >= 2 && *((*start).dead + 1) == 0) {
 				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-				cout << "玩家" << *(*playerTwo).name << "擁有" << *(*playerTwo).money << "元。\n";
+				cout << "玩家二號 " << *(*playerTwo).name << "擁有" << *(*playerTwo).money << "元。\n";
 				if (*(*start).realPlayer >= 2)
-					(*game).realGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);	//二號真實玩家
+					(*game).realGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour, show);	//二號真實玩家
 				else
 					(*game).computerGamerLoop(playerTwo, map, start, playerOne, playerThree, playerFour);//二號電腦玩家
 			}
@@ -1301,9 +1361,9 @@ int main()
 
 			if (*(*start).people >= 3 && *((*start).dead + 2) == 0) {
 				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-				cout << "玩家" << *(*playerThree).name << "擁有" << *(*playerThree).money << "元。\n";
+				cout << "玩家三號 " << *(*playerThree).name << "擁有" << *(*playerThree).money << "元。\n";
 				if (*(*start).realPlayer >= 3)
-					(*game).realGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);	//三號真實玩家
+					(*game).realGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour, show);	//三號真實玩家
 				else
 					(*game).computerGamerLoop(playerThree, map, start, playerTwo, playerOne, playerFour);//三號電腦玩家
 			}
@@ -1312,9 +1372,9 @@ int main()
 
 			if (*(*start).people == 4 && *((*start).dead + 3) == 0) {
 				(*map).printmap(playerOne, playerTwo, playerThree, playerFour, start);					//印出地圖
-				cout << "玩家" << *(*playerFour).name << "擁有" << *(*playerFour).money << "元。\n";
+				cout << "玩家四號 " << *(*playerFour).name << "擁有" << *(*playerFour).money << "元。\n";
 				if (*(*start).realPlayer == 4)
-					(*game).realGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);	//四號真實玩家
+					(*game).realGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne, show);	//四號真實玩家
 				else
 					(*game).computerGamerLoop(playerFour, map, start, playerTwo, playerThree, playerOne);//四號電腦玩家
 			}
