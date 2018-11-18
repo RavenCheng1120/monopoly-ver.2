@@ -89,11 +89,12 @@ public:
 	void printStart() {
 		cout << setw(70) << "-歡迎來到奇幻世界大富翁-" << endl << endl;
 		cout << "遊戲說明:\n    此遊戲開始金額建議為1500元，每次經過起點將獲得300元。" << endl;
-		cout << "    每次行動可選擇擲骰子(d)或是重新開始整個遊戲(r)。可以存檔、讀檔與刪除所有紀錄檔。" << endl;
+		cout << "    每次行動可選擇擲骰子(d)或是重新開始整個遊戲(r)。可以存檔、讀檔、印出過往紀錄與買賣股票。" << endl;
 		cout << "    踩上土地方塊時，可以決定是否購買房子，或是繼續升級房屋，一塊土地最多升到5級房子。若土地已有該玩家蓋的房子，則可收取保護費。"
 			<< "站到其他玩家的土地上，則會被收取過路費。" << endl;
 		cout << "    踩到機會及命運方塊，系統將自動抽牌，並執行牌上的指令。" << endl;
 		cout << "    踩到抽稅方塊，玩家將減少200元。若擁有逃稅卡牌將會自動使用。" << endl;
+		cout << "    股票會受事件影響漲跌，玩家可自由買賣股票。" << endl;
 		cout << "   存檔都在同一個檔案Save.txt，讀檔也是從Save.txt讀取，若弄亂文字的格式會造成讀檔錯誤。可選擇任何存檔紀錄。" << endl << endl;
 
 		cout << "遊戲背景:\n    在某個奇幻世界，荒蕪的大地上充滿怪物與暴力的居民，而你是一個沒沒無聞但充滿野心的人類。\n";
@@ -216,7 +217,6 @@ public:
 	string* company;
 	int* price;
 	int* oldprice;
-	int* updown;
 	int* i;
 	char* ptemp;
 	int* which;
@@ -226,8 +226,6 @@ public:
 		company = new string;
 		price = new int;
 		oldprice = new int;
-		updown = new int;
-		*updown = 0;
 		i = new int;
 		ptemp = new char;
 		which = new int;
@@ -238,7 +236,6 @@ public:
 		delete company;
 		delete price;
 		delete oldprice;
-		delete updown;
 		delete i;
 		delete ptemp;
 		delete which;
@@ -273,8 +270,6 @@ public:
 				cout << "請問要購買幾股呢?(輸入數字):";
 				cin.getline(ptemp, 20);
 				*howmany = atoi(ptemp);
-				(*player).buyStock[(*which)*2] += *howmany;
-				(*player).buyStock[(*which) * 2 + 1] += (*(stock[*which]).price) * (*howmany);
 				
 				//防止破產機制
 				if ((*howmany) * (*(stock[*which]).price) > *(*player).money) {
@@ -282,12 +277,15 @@ public:
 					cout << "餘額不足，無法購買股票" << endl;
 					continue;
 				}
+
+				(*player).buyStock[(*which) * 2] += *howmany;
+				(*player).buyStock[(*which) * 2 + 1] += (*(stock[*which]).price) * (*howmany);
 				*(*player).money -= (*howmany) * (*(stock[*which]).price);
 				cout << "購買[" << *(stock[*which]).company << "]，花費" << (*howmany) * (*(stock[*which]).price) << "元，玩家擁有" << *(*player).money << "元。" << endl;
 				(*(*show).showstr).append("購買" + *(stock[*which]).company + "的" + to_string((*player).buyStock[(*which) * 2]) + "張股票。\n");
 			}
 			else if (*ptemp == 's' && *(ptemp + 1) == '\0') {		//販賣股票
-				(*(*show).showstr).append("選擇購買股票，");
+				(*(*show).showstr).append("選擇賣掉股票，");
 				*howmany = 0;
 				for (*i = 0; *i < 10; (*i)++) {
 					if ((*player).buyStock[(*i) * 2] == 0)
@@ -336,15 +334,22 @@ public:
 	}
 
 	void printStock(Cstock* stock) {
+		cout << endl;
+		events(stock);		//隨機觸發事件，影響股票波動
+		//股票價值不低於0元
+		for (*i = 0; *i < 10; (*i)++) {
+			if (*(*(stock + *i)).price <= 0)
+				*(*(stock + *i)).price = 10;
+		}
 		cout << "\n        -股票波動表-(單位:元)" << endl;
 		cout << "   股票名稱 \t\t股價 \t\t升降 \t\t漲跌" << endl;
 		for (*i = 0; *i < 10; (*i)++) {
 			cout << *i + 1 << ". " << *(*(stock + *i)).company << "\t\t" << *(*(stock + *i)).price << "\t\t";
-			if (*(*(stock + *i)).updown == 0)	//無升降
+			if (*(*(stock + *i)).oldprice == *(*(stock + *i)).price)	//無升降
 				cout << " - ";
-			else if (*(*(stock + *i)).updown == -1)	//下跌
+			else if (*(*(stock + *i)).oldprice > *(*(stock + *i)).price)	//下跌
 				cout << "  v";
-			else if (*(*(stock + *i)).updown == 1)	//上漲
+			else if (*(*(stock + *i)).oldprice < *(*(stock + *i)).price)	//上漲
 				cout << "^  ";
 			cout << "\t\t" << *(*(stock + *i)).price - *(*(stock + *i)).oldprice << endl;
 		}
@@ -353,20 +358,121 @@ public:
 
 	//隨機波動
 	void priceChange(Cstock* stock) {
-		for (*i = 0; *i < 10; (*i)++)		//紀錄舊價格
-			*(*(stock + *i)).oldprice = *(*(stock + *i)).price;
 		srand(time(NULL));
-		for (*i = 0; *i < 10; (*i)++) {
-			*(*(stock + *i)).price += (rand() % 200) - 100;
-			if (*(*(stock + *i)).price < 0)		//股票價值不低於0元
-				*(*(stock + *i)).price = 0;
-			if (*(*(stock + *i)).oldprice > *(*(stock + *i)).price)
-				*(*(stock + *i)).updown = -1;
-			else if(*(*(stock + *i)).oldprice < *(*(stock + *i)).price)
-				*(*(stock + *i)).updown = 1;
-			else
-				*(*(stock + *i)).updown = 0;
+		for (*i = 0; *i < 10; (*i)++) 
+			*(*(stock + *i)).price += (rand() % 100) - 50;
+	}
+
+	//事件影響股票
+	void events(Cstock* stock) {
+		srand(time(NULL));
+		*which = rand() % 25;
+		switch (*which)
+		{
+		case 0:
+			cout << "--本日新聞:食安風暴來襲，食品相關股票大跌!--" << endl;
+			*stock[0].price -= 200;
+			*stock[1].price -= 250;
+			*stock[2].price -= 200;
+			break;
+		case 1:
+			cout << "--本日新聞:殖民地建設繁榮，人口逐漸成長，所有股票微微上漲--" << endl;
+			for(*i = 0 ; *i < 10 ; (*i)++)
+				*stock[*i].price += 70;
+			break;
+		case 2:cout << "--本日新聞:發覺領導人有貪汙的疑慮，所有股票價格微微下降--" << endl;
+			for (*i = 0; *i < 10; (*i)++)
+				*stock[*i].price -= 50;
+			break;
+		case 3:
+			cout << "--本日新聞:本周櫻花季!!!觀光相關股票大漲--" << endl;
+			*stock[8].price += 150;
+			*stock[9].price += 150;
+			break;
+		case 4:
+			cout << "--本日新聞:不停蓋不停蓋，殖民地房屋建設不斷，建設相關股票上漲--" << endl;
+			*stock[5].price += 120;
+			*stock[6].price += 120;
+			*stock[7].price += 120;
+			break;
+		case 5:
+			cout << "--本日新聞:近期的種族鬥爭讓人民開始投資保險，保險類股票波動大--" << endl;
+			*stock[3].price += 140;
+			*stock[4].price -= 150;
+			break;
+		case 6:
+			cout << "--本日新聞:近期的種族鬥爭讓人民開始投資保險，保險類股票波動大--" << endl;
+			*stock[3].price -= 170;
+			*stock[4].price += 120;
+			break;
+		default:
+			break;
 		}
+	}
+
+	//讓電腦自己買股票
+	void autobuy(Cplayer* player, Cstock* stock, Cshow* show) {
+		//股票價值不低於0元
+		for (*i = 0; *i < 10; (*i)++) {
+			if (*(*(stock + *i)).price <= 0)
+				*(*(stock + *i)).price = 10;
+		}
+		//找到最低價的股票
+		*which = 0;
+		for(*i = 1 ; *i < 10 ; (*i)++){
+			if (*stock[*i].price < *stock[*which].price)
+				*which = *i;
+		}
+		int* itemp = new int;
+		*itemp = *(*player).money / 5;			//拿五分之一的錢去買股票
+		*howmany = (*itemp) / (*stock[*which].price);
+		if (*howmany <= 0)
+			return;
+		(*player).buyStock[(*which) * 2] += *howmany;
+		(*player).buyStock[(*which) * 2 + 1] += (*(stock[*which]).price) * (*howmany);
+		*(*player).money -= (*howmany) * (*(stock[*which]).price);
+		cout << "\t股票:電腦玩家選擇購買股票[" << *(stock[*which]).company << "]" << to_string((*player).buyStock[(*which) * 2]) << "張，花費" << (*howmany) * (*(stock[*which]).price) << "元，玩家擁有" << *(*player).money << "元。" << endl;
+		(*(*show).showstr).append("購買" + *(stock[*which]).company + "的" + to_string((*player).buyStock[(*which) * 2]) + "張股票。\n");
+		delete itemp;
+		(*show).storeShow();
+		*(*show).showstr = "";
+	}
+
+	//讓電腦自己賣股票
+	void autosale(Cplayer* player, Cstock* stock, Cshow* show) {
+		for (*i = 0; *i < 10; (*i)++) {
+			if ((*player).buyStock[(*i) * 2] == 0)
+				*howmany += 1;
+		}
+		int* max = new int;
+		if (*howmany == 10) {		//無股票可賣
+			delete max;
+			return;
+		}
+		
+		*which = 0;
+		*max = (*(*stock).price) * ((*player).buyStock[0]) - (*player).buyStock[1];		//計算最多可以賺多少
+		for (*i = 1; *i < 10; (*i)++) {
+			if ((*player).buyStock[(*i) * 2] != 0) {
+				if ((*(*(stock + *i)).price) * ((*player).buyStock[(*i) * 2]) - (*player).buyStock[(*i) * 2 + 1] > *max) {
+					*max = (*(*(stock + *i)).price) * ((*player).buyStock[(*i) * 2]) - (*player).buyStock[(*i) * 2 + 1];
+					*which = *i;
+				}
+			}
+		}
+		if (*max <= 0) {	//會賠錢
+			delete max;
+			return;
+		}
+		*howmany = (*player).buyStock[(*which) * 2];
+		(*player).buyStock[(*which) * 2] = 0;
+		(*player).buyStock[(*which) * 2 + 1] = 0;
+		*(*player).money += (*(stock[*which]).price) * (*howmany);
+		cout << "\t股票:電腦玩家選擇賣掉[" << *(stock[*which]).company << "]獲得" << (*(stock[*which]).price) * (*howmany) << "元，玩家擁有" << *(*player).money << "元。" << endl;
+		(*(*show).showstr).append("賣掉" + *(stock[*which]).company + "的股票，賺到" + to_string((*(stock[*which]).price) * (*howmany)) + "元。\n");
+		delete max;
+		(*show).storeShow();
+		*(*show).showstr = "";
 	}
 };
 
@@ -801,7 +907,7 @@ public:
 	}
 
 	//存檔
-	void saveText(Cplayer* p1, Cplayer* p2, Cplayer* p3, Cplayer* p4, CLands* map, CStart* start) {
+	void saveText(Cplayer* p1, Cplayer* p2, Cplayer* p3, Cplayer* p4, CLands* map, CStart* start, Cstock* stock) {
 		(*saveFile).open("Save.txt", ios::out | ios::app);
 		if ((*saveFile).is_open()) {
 			(*saveFile) << "\nSave file:" << endl;
@@ -842,6 +948,35 @@ public:
 				(*saveFile) << *((*map).owner + (*itemp)) << "/";
 			(*saveFile) << endl;
 
+			(*saveFile) << "Player one's stocks:";
+			for (*itemp = 0; *itemp < 20; (*itemp)++)
+				(*saveFile) << (*p1).buyStock[*itemp] << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "Player two's stocks:";
+			for (*itemp = 0; *itemp < 20; (*itemp)++)
+				(*saveFile) << (*p2).buyStock[*itemp] << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "Player three's stocks:";
+			for (*itemp = 0; *itemp < 20; (*itemp)++)
+				(*saveFile) << (*p3).buyStock[*itemp] << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "Player four's stocks:";
+			for (*itemp = 0; *itemp < 20; (*itemp)++)
+				(*saveFile) << (*p4 ).buyStock[*itemp] << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "Stock prices:";
+			for (*itemp = 0; *itemp < 10; (*itemp)++)
+				(*saveFile) << *(stock[*itemp]).price << "/";
+			(*saveFile) << endl;
+
+			(*saveFile) << "Old stock prices:";
+			for (*itemp = 0; *itemp < 10; (*itemp)++)
+				(*saveFile) << *(stock[*itemp]).oldprice << "/";
+			(*saveFile) << endl;
 			
 			(*saveFile).close();
 			cout << "儲存成功。" << endl;
@@ -850,7 +985,7 @@ public:
 	}
 	
 	//讀檔
-	void loadtext(Cplayer* p1, Cplayer* p2, Cplayer* p3, Cplayer* p4, CLands* map, CStart* start) {
+	void loadtext(Cplayer* p1, Cplayer* p2, Cplayer* p3, Cplayer* p4, CLands* map, CStart* start, Cstock* stock) {
 		(*loadFile).open("Save.txt", ifstream::in);
 		if ((*loadFile).is_open()) {
 			count = new int;
@@ -1058,6 +1193,96 @@ public:
 						*((*map).owner + *i) = *findWord;
 					}
 					break;
+				case 18:	//第十八行是玩家一擁有股票
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					(*p1).buyStock[0] = *findWord;
+
+					for (*i = 1; *i < 20; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						(*p1).buyStock[*i] = *findWord;
+					}
+					break;
+				case 19:	//第十九行是玩家二擁有股票
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					(*p2).buyStock[0] = *findWord;
+
+					for (*i = 1; *i < 20; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						(*p2).buyStock[*i] = *findWord;
+					}
+					break;
+				case 20:	//第二十行是玩家三擁有股票
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					(*p3).buyStock[0] = *findWord;
+
+					for (*i = 1; *i < 20; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						(*p3).buyStock[*i] = *findWord;
+					}
+					break;
+				case 21:	//第二十一行是玩家四擁有股票
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					(*p4).buyStock[0] = *findWord;
+
+					for (*i = 1; *i < 20; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						(*p4).buyStock[*i] = *findWord;
+					}
+					break;
+				case 22:	//第二十二行是股票價格
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(stock[0]).price = *findWord;
+
+					for (*i = 1; *i < 10; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						*(stock[*i]).price = *findWord;
+					}
+					break;
+				case 23:	//第二十三行是股票舊價格
+					*findWord = (*stemp).find(":");
+					*cutWord = (*stemp).find("/");
+					*words = (*stemp).substr((*findWord) + 1, (*cutWord - *findWord - 1));	//取出:和/之間的數
+					*findWord = stoi(*words);
+					*(stock[0]).oldprice = *findWord;
+
+					for (*i = 1; *i < 10; (*i)++) {
+						*stemp = (*stemp).substr((*cutWord) + 1);
+						*cutWord = (*stemp).find("/");	//取出斜線間的數
+						*words = (*stemp).substr(0, *cutWord);
+						*findWord = stoi(*words);
+						*(stock[*i]).oldprice = *findWord;
+					}
+					break;
 				default:
 					break;
 				}
@@ -1081,8 +1306,11 @@ public:
 			getline(cin, *stemp);
 			break;
 		case 1:
-			cout << "被捲進半獸人戰爭，重傷住院，花700元治療費。(按下ENTER)";
+			cout << "被捲進半獸人戰爭，重傷住院，花700元治療費。" << endl;
+			cout << "因醫療補助問題，你與保險業者起了糾紛，保險相關股票下跌。(按下ENTER)";
 			*(*player).money -= 700;
+			*stock[3].price -= 200;
+			*stock[4].price -= 200;
 			getline(cin, *stemp);
 			break;
 		case 2:
@@ -1110,22 +1338,26 @@ public:
 	}
 
 	//命運
-	void community(Cplayer* player) {
+	void community(Cplayer* player, Cstock* stock) {
 		srand(time(NULL));
 		*itemp = rand() % 5;
 		switch (*itemp) {
 		case 0:
-			cout << "你進到一個神祕的洞穴探險，試圖找到寶藏。(按下ENTER)";
-			getline(cin, *stemp);
-			cout << "突然冒出了吸血鬼女王，她大聲譴責你無理的闖入行為，並露出獠牙，你嚇得雙腿發軟。(按下ENTER)";
+			cout << "你進到一個神祕的洞穴探險，突然冒出了吸血鬼女王，你嚇得雙腿發軟。(按下ENTER)";
 			getline(cin, *stemp);
 			cout << "你轉身逃跑，慌亂中口袋的金幣掉了出來，損失100元。(按下ENTER)";
 			*(*player).money -= 100;
 			getline(cin, *stemp);
 			break;
 		case 1:
-			cout << "你養的龍掙脫鎖鏈，大肆破壞你的殖民地，損失慘重，花費1000元重建。(按下ENTER)";
+			cout << "你養的龍掙脫鎖鏈，大肆破壞你的殖民地，損失慘重，花費1000元重建。" << endl;
+			cout << "殖民地受到重創，所有股票大跌。(按下ENTER)";
 			*(*player).money -= 1000;
+			for (*i = 0; *i < 10; (*i)++) {
+				*stock[*i].price -= 400;
+				if (*stock[*i].price <= 0)
+					*stock[*i].price = 10;
+			}
 			getline(cin, *stemp);
 			break;
 		case 2:
@@ -1154,7 +1386,7 @@ public:
 		(*(*show).showstr).append("玩家" + *(*player).name + "的回合，");
 		//擲骰子
 		do {
-			cout << "按d擲骰子，按r重新開始，show印出過往事件，load載入舊檔，save存檔，stock進入股票畫面: ";
+			cout << "按d擲骰子，按r重新開始，show印出過往事件，load載入舊檔，save存檔，s進入股票畫面: ";
 			cin.getline(ptemp, 30);
 			if (*ptemp == 'd' && *(ptemp + 1) == '\0') {
 				srand(time(NULL));
@@ -1171,24 +1403,24 @@ public:
 			else if (*ptemp == 's' && *(ptemp + 1) == 'a' && *(ptemp + 2) == 'v' && *(ptemp + 3) == 'e' && *(ptemp + 4) == '\0') {
 				(*(*show).showstr).append("選擇存檔，");
 				if (*(*player).playerNumber == 1)
-					saveText(player, p2, p3, p4, map, start);
+					saveText(player, p2, p3, p4, map, start, stock);
 				else if (*(*player).playerNumber == 2)
-					saveText(p2, player, p3, p4, map, start);
+					saveText(p2, player, p3, p4, map, start, stock);
 				else if (*(*player).playerNumber == 3)
-					saveText(p3, p2, player, p4, map, start);
+					saveText(p3, p2, player, p4, map, start, stock);
 				else if (*(*player).playerNumber == 4)
-					saveText(p4, p2, p3, player, map, start);
+					saveText(p4, p2, p3, player, map, start, stock);
 			}
 			else if (*ptemp == 'l' && *(ptemp + 1) == 'o' && *(ptemp + 2) == 'a' && *(ptemp + 3) == 'd' && *(ptemp + 4) == '\0') {
 				(*(*show).showstr).append("選擇讀檔...\n");
 				if (*(*player).playerNumber == 1)
-					loadtext(player, p2, p3, p4, map, start);
+					loadtext(player, p2, p3, p4, map, start, stock);
 				else if (*(*player).playerNumber == 2)
-					loadtext(p2, player, p3, p4, map, start);
+					loadtext(p2, player, p3, p4, map, start, stock);
 				else if (*(*player).playerNumber == 3)
-					loadtext(p3, p2, player, p4, map, start);
+					loadtext(p3, p2, player, p4, map, start, stock);
 				else if (*(*player).playerNumber == 4)
-					loadtext(p4, p2, p3, player, map, start);
+					loadtext(p4, p2, p3, player, map, start, stock);
 
 				//防止讀檔時讀取到破產真實玩家
 				if (*(*player).money <= 0) {
@@ -1199,7 +1431,7 @@ public:
 			else if (*ptemp == 's' && *(ptemp + 1) == 'h' && *(ptemp + 2) == 'o' && *(ptemp + 3) == 'w' && *(ptemp + 4) == '\0') {
 				(*show).printShow();
 			}
-			else if (*ptemp == 's' && *(ptemp + 1) == 't' && *(ptemp + 2) == 'o' && *(ptemp + 3) == 'c' && *(ptemp + 4) == 'k' && *(ptemp + 5) == '\0') {
+			else if (*ptemp == 's' &&  *(ptemp + 1) == '\0') {
 				(*stock).printStock(stock);
 				(*stock).buysale(player, stock, show);
 			}
@@ -1233,7 +1465,7 @@ public:
 			cout << "你到達了命運女神的殿堂，她將賜予你一張命運牌...(按下ENTER)";
 			getline(cin, *stemp);
 			(*(*show).showstr).append("抽取命運牌。\n");
-			community(player);
+			community(player, stock);
 		}
 		//到達抽稅方塊
 		else if (*(*player).position == 10 || *(*player).position == 25) {
@@ -1291,6 +1523,14 @@ public:
 							*((*map).owner + *(*player).position) = *(*player).playerNumber;
 							(*(*show).showstr).append("購買房子，此地點為" + to_string(*((*map).houses + *(*player).position)) + "級房屋。\n");
 							getline(cin, *stemp);
+							if (*((*map).houses + *(*player).position) == 2) {
+								cout << "此地開始二級房屋的建設，建設相關股票上漲。(按下ENTER)";
+								*stock[5].price += 200;
+								*stock[6].price += 250;
+								*stock[7].price += 200;
+								(*(*show).showstr).append("此地開始二級房屋的建設，建設相關股票上漲。\n");
+								getline(cin, *stemp);
+							}			
 							break;
 						}
 						else if (*ptemp == 'n' && *(ptemp + 1) == '\0') {			//拒絕買房
@@ -1346,9 +1586,13 @@ public:
 		}
 		//破產
 		if (*(*player).money <= 0) {
-			cout << "\n你破產了!!!!!!!!!(按下ENTER)" << endl;
+			cout << "\n你破產了!!!!!!!!!" << endl << endl;
+			cout << "死亡事件影響股票市場，保險相關的股票大漲(按下ENTER)";
+			*stock[3].price += 600;
+			*stock[4].price += 550;
 			*((*start).dead + *(*player).playerNumber - 1) = 1;			//設定此真實玩家死亡
 			(*(*show).showstr).append("此玩家破產!!!!\n");
+			(*(*show).showstr).append("死亡事件影響股票市場，保險相關的股票大漲。\n");
 			getline(cin, *stemp);
 		}
 		(*show).storeShow();
@@ -1358,6 +1602,8 @@ public:
 	//***虛擬電腦玩家***
 	void computerGamerLoop(Cplayer* player, CLands* map, CStart* start, Cplayer* p2, Cplayer* p3, Cplayer* p4, Cshow* show, Cstock* stock) {
 		(*(*show).showstr).append("玩家" + *(*player).name + "的回合，");
+		(*stock).autobuy( player, stock, show);
+		(*stock).autosale(player, stock, show);
 		//擲骰子
 		srand(time(NULL));
 		dice = new int;
@@ -1386,7 +1632,7 @@ public:
 		else if (*(*player).position == 17) {
 			cout << "到達了命運女神的殿堂，她賜予一張命運牌...\n";
 			(*(*show).showstr).append("抽取命運牌。\n");
-			community(player);
+			community(player, stock);
 		}
 		//到達抽稅方塊
 		else if (*(*player).position == 10 || *(*player).position == 25) {
@@ -1439,6 +1685,14 @@ public:
 						*((*map).owner + *(*player).position) = *(*player).playerNumber;
 						(*(*show).showstr).append("購買房子，此地點為" + to_string(*((*map).houses + *(*player).position)) + "級房屋。\n");
 						getline(cin, *stemp);
+						if (*((*map).houses + *(*player).position) == 2) {
+							cout << "此地開始二級房屋的建設，建設相關股票上漲。(按下ENTER)";
+							*stock[5].price += 200;
+							*stock[6].price += 250;
+							*stock[7].price += 200;
+							(*(*show).showstr).append("此地開始二級房屋的建設，建設相關股票上漲。\n");
+							getline(cin, *stemp);
+						}
 					}
 					else{			//拒絕買房
 						cout << "他拒絕購買房子，遊戲繼續。(按下ENTER)";
@@ -1481,8 +1735,13 @@ public:
 		//破產
 		if (*(*player).money <= 0) {
 			cout << "\n此玩家破產了!!!" << endl;
+			cout << "死亡事件影響股票市場，保險相關的股票大漲(按下ENTER)";
+			*stock[3].price += 400;
+			*stock[4].price += 400;
 			*((*start).dead + *(*player).playerNumber - 1) = 1;			//設定此玩家死亡
 			(*(*show).showstr).append("此玩家破產!!!!\n");
+			(*(*show).showstr).append("死亡事件影響股票市場，保險相關的股票大漲。\n");
+			getline(cin, *stemp);
 		}
 		(*show).storeShow();
 		*(*show).showstr = "";
@@ -1526,7 +1785,7 @@ int main()
 		*(*(stock + 7)).price = (rand() % 250) + 100;
 		*(*(stock + 8)).price = (rand() % 250) + 100;
 		*(*(stock + 9)).price = (rand() % 250) + 100;
-		for (*(*stock).i = 0; *(*stock).i < 10; (*(*stock).i)++)
+		for (*(*stock).i = 0; *(*stock).i < 10; (*(*stock).i)++)				//紀錄先前股價
 			*(*(stock + *(*stock).i)).oldprice = *(*(stock + *(*stock).i)).price;
 
 		//輸入金錢，設定所有玩家的金錢數
@@ -1675,11 +1934,10 @@ int main()
 				getline(cin, *(*start).strtemp);
 				break;
 			}
-
+			for (*(*stock).i = 0; *(*stock).i < 10; (*(*stock).i)++)				//紀錄先前股價
+				*(*(stock + *(*stock).i)).oldprice = *(*(stock + *(*stock).i)).price;
 			//股票價格變動
 			(*stock).priceChange(stock);
-			*stock[8].price += 500;
-			*stock[9].price += 600;
 		} while (true);
 
 		cout << endl << endl;
