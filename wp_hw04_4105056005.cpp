@@ -341,10 +341,11 @@ public:
 			if (*(*(stock + *i)).price <= 0)
 				*(*(stock + *i)).price = 10;
 		}
-		cout << "\n        -股票波動表-(單位:元)" << endl;
-		cout << "   股票名稱 \t\t股價 \t\t升降 \t\t漲跌" << endl;
+		cout << "                       --------------------------------------------------------------";
+		cout << "\n" << setw(65) << "-股票波動表-(單位:元)" << endl;
+		cout << "\t\t\t" << "   股票名稱 \t\t股價 \t\t升降 \t\t漲跌" << endl;
 		for (*i = 0; *i < 10; (*i)++) {
-			cout << *i + 1 << ". " << *(*(stock + *i)).company << "\t\t" << *(*(stock + *i)).price << "\t\t";
+			cout << "\t\t\t" << *i + 1 << ". " << *(*(stock + *i)).company << "\t\t" << *(*(stock + *i)).price << "\t\t";
 			if (*(*(stock + *i)).oldprice == *(*(stock + *i)).price)	//無升降
 				cout << " - ";
 			else if (*(*(stock + *i)).oldprice > *(*(stock + *i)).price)	//下跌
@@ -353,6 +354,7 @@ public:
 				cout << "^  ";
 			cout << "\t\t" << *(*(stock + *i)).price - *(*(stock + *i)).oldprice << endl;
 		}
+		cout << "                       --------------------------------------------------------------";
 		cout << endl;
 	}
 
@@ -370,38 +372,38 @@ public:
 		switch (*which)
 		{
 		case 0:
-			cout << "--本日新聞:食安風暴來襲，食品相關股票大跌!--" << endl;
+			cout << "                       --本日新聞:食安風暴來襲，食品相關股票大跌!--" << endl;
 			*stock[0].price -= 200;
 			*stock[1].price -= 250;
 			*stock[2].price -= 200;
 			break;
 		case 1:
-			cout << "--本日新聞:殖民地建設繁榮，人口逐漸成長，所有股票微微上漲--" << endl;
+			cout << "                       --本日新聞:殖民地建設繁榮，人口逐漸成長，所有股票微微上漲--" << endl;
 			for(*i = 0 ; *i < 10 ; (*i)++)
 				*stock[*i].price += 70;
 			break;
-		case 2:cout << "--本日新聞:發覺領導人有貪汙的疑慮，所有股票價格微微下降--" << endl;
+		case 2:cout << "                       --本日新聞:發覺領導人有貪汙的疑慮，所有股票價格微微下降--" << endl;
 			for (*i = 0; *i < 10; (*i)++)
 				*stock[*i].price -= 50;
 			break;
 		case 3:
-			cout << "--本日新聞:本周櫻花季!!!觀光相關股票大漲--" << endl;
+			cout << "                       --本日新聞:本周櫻花季!!!觀光相關股票大漲--" << endl;
 			*stock[8].price += 150;
 			*stock[9].price += 150;
 			break;
 		case 4:
-			cout << "--本日新聞:不停蓋不停蓋，殖民地房屋建設不斷，建設相關股票上漲--" << endl;
+			cout << "                       --本日新聞:不停蓋不停蓋，殖民地房屋建設不斷，建設相關股票上漲--" << endl;
 			*stock[5].price += 120;
 			*stock[6].price += 120;
 			*stock[7].price += 120;
 			break;
 		case 5:
-			cout << "--本日新聞:近期的種族鬥爭讓人民開始投資保險，保險類股票波動大--" << endl;
+			cout << "                       --本日新聞:近期的種族鬥爭讓人民開始投資保險，保險類股票波動大--" << endl;
 			*stock[3].price += 140;
 			*stock[4].price -= 150;
 			break;
 		case 6:
-			cout << "--本日新聞:近期的種族鬥爭讓人民開始投資保險，保險類股票波動大--" << endl;
+			cout << "                       --本日新聞:近期的種族鬥爭讓人民開始投資保險，保險類股票波動大--" << endl;
 			*stock[3].price -= 170;
 			*stock[4].price += 120;
 			break;
@@ -1915,24 +1917,24 @@ int main()
 				break;
 			}
 			else if (*(*start).dead == 0 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 1 && *((*start).dead + 3) == 1){
-				cout << "恭喜一號玩家" << *(*playerOne).name << "勝利!!!(按下ENTER)" << endl;
+				cout << "恭喜一號玩家" << *(*playerOne).name << "勝利!!!(按下ENTER離開遊戲)" << endl;
 				getline(cin, *(*start).strtemp);
-				break;
+				return 0;
 			}
 			else if (*(*start).dead == 1 && *((*start).dead + 1) == 0 && *((*start).dead + 2) == 1 && *((*start).dead + 3) == 1) {
-				cout << "恭喜二號玩家" << *(*playerTwo).name << "勝利!!!(按下ENTER)" << endl;
+				cout << "恭喜二號玩家" << *(*playerTwo).name << "勝利!!!(按下ENTER離開遊戲)" << endl;
 				getline(cin, *(*start).strtemp);
-				break;
+				return 0;
 			}
 			else if (*(*start).dead == 1 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 0 && *((*start).dead + 3) == 1) {
-				cout << "恭喜三號玩家" << *(*playerThree).name << "勝利!!!(按下ENTER)" << endl;
+				cout << "恭喜三號玩家" << *(*playerThree).name << "勝利!!!(按下ENTER離開遊戲)" << endl;
 				getline(cin, *(*start).strtemp);
-				break;
+				return 0;
 			}
 			else if (*(*start).dead == 1 && *((*start).dead + 1) == 1 && *((*start).dead + 2) == 1 && *((*start).dead + 3) == 0) {
-				cout << "恭喜四號玩家" << *(*playerFour).name << "勝利!!!(按下ENTER)" << endl;
+				cout << "恭喜四號玩家" << *(*playerFour).name << "勝利!!!(按下ENTER離開遊戲)" << endl;
 				getline(cin, *(*start).strtemp);
-				break;
+				return 0;
 			}
 			for (*(*stock).i = 0; *(*stock).i < 10; (*(*stock).i)++)				//紀錄先前股價
 				*(*(stock + *(*stock).i)).oldprice = *(*(stock + *(*stock).i)).price;
